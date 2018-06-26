@@ -4,7 +4,7 @@
 \alias{copy.tableMatrix}
 \title{Copy}
 \usage{
-copy.tableMatrix(obj)
+\method{copy}{tableMatrix}(obj)
 }
 \arguments{
 \item{obj}{\code{tableMatrix} object.}
@@ -15,4 +15,3 @@ copy.tableMatrix(obj)
 \description{
 Copy of a \code{tableMatrix} object.
 }
-

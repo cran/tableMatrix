@@ -15,7 +15,7 @@
 \item{matN}{Integer. Matrix number in the matrix part list.}
 
 \item{resetN}{Logical. When FALSE \code{tm.matN} of returned \code{matDim} won't be 
-reseted to 1.}
+reset to 1.}
 
 \item{...}{Passed arguments.}
 
@@ -43,4 +43,3 @@ matDim(TM)
 matDim(TM, 2)
 
 }
-

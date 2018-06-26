@@ -2,21 +2,34 @@
 % Please edit documentation in R/tableMatrix.R
 \name{[.tableList}
 \alias{[.tableList}
+\alias{[<-.tableList}
 \title{Bracket}
 \usage{
 \method{[}{tableList}(x, ...)
+
+\method{[}{tableList}(x, i, j) <- value
 }
 \arguments{
 \item{x}{\code{tableList} object.}
 
 \item{...}{Passed arguments.}
+
+\item{i}{Same as \code{i} in \code{data.table}}
+
+\item{j}{Same as \code{j} in \code{data.table}}
+
+\item{value}{Value to be set.}
 }
 \value{
 \code{tableList} or vector.
 }
 \description{
 \code{tableList} method, passes data.table bracket functionality to the table attribute.
-Usage is the same as in data.table[].
+Usage is the same as in data.table[] and data.table[] <-.
+Assigning works only for \code{tab} part and only \code{i} and \code{j} from \code{data.table}
+is used.
+
+Bracket
 }
 \examples{
 
@@ -28,5 +41,13 @@ TL <- tableList(images8By8[,1:3])
 # Apply data.table bracket on a tableList object
 TL[direction=="both"]
 
-}
 
+TL[2,1] <- "aaa"
+
+# setting row
+TL[2,] <- list("aaa", 1000, 1000)
+
+# setting column
+TL[,2] <- 1
+
+}

@@ -1,9 +1,12 @@
 #
-# Inference Technologies
+# Inference Technologies 
+# http://inferencetech.com
+#
+# pkg tableMatrix
 #
 # Class tableList, tableMatrix
 # 
-# 0.80
+# 0.82
 # 
 
 #
@@ -25,17 +28,20 @@ utils::globalVariables(c("J", "."))
 # tableMatrix names
 tmName <- list(matN="tm.matN", matRow="tm.matRow", matCols="tm.matCols", matDim="tm.matDim", allRow="tm.allRow")
 
-
 #
 # Classes Constructors
 #
 
 # Wraps tableList components together.
-tableListWrap <- function(tab=data.table(), aid=list(), objClass=NULL) {
+tableListWrap <- function(tab=data.table(), aid=list(), objClass=NULL, dataType=NULL) {
 
 	obj <- list()
 	obj$tab <- tab
 	obj$aid <- aid
+
+	if (! is.null(dataType)) {
+		obj$aid$dataType <- dataType
+	} 
 
 	if (!is.null(objClass)) {
 		class(obj) <- objClass
@@ -50,10 +56,13 @@ tableListWrap <- function(tab=data.table(), aid=list(), objClass=NULL) {
 #' 
 #' \code{tableList} constructor, creates tableList object from a data.frame or a data.table
 #' and from aid data. The goal is to wrap data.table and any additional data structures together. 
-#' \code{tableList} behaves like a data.table object.
+#' \code{tableList} behaves like a data.table object. Groups of attributes can be stored together via 
+#' \code{dataType}.
 #'
 #' @param tabData A data.frame or a data.table.
 #' @param aidData Aid structures, generally in the form of a list.
+#' @param dataType Named list. Contains names of groups of attributes, elements are attributes which
+#' belong to the group.
 #' 
 #' @return A \code{tableList} object
 #' 
@@ -73,27 +82,34 @@ tableListWrap <- function(tab=data.table(), aid=list(), objClass=NULL) {
 #'
 #' # Aid part of the tableList object carries the linear model
 #' aid(TL)
+#'
+#' # dataType support
+#' TL <- tableList(chickwts, lm(weight~feed, chickwts), dataType=list(group1="weight", group2="feed"))
 #' 
 #' @export
-tableList <- function(tabData, aidData=list()) {
+tableList <- function(tabData, aidData=list(), dataType=NULL) {
 
 	if (missing(tabData)) { return(tableListWrap()) }
 
 	if (is.data.frame(tabData)) { tabData <- as.data.table(tabData) }
 	if (!is.data.table(tabData)) { stop("tableList requires data.frame or data.table") }
 	
-	return(tableListWrap(tabData, aidData))
+	return(tableListWrap(tabData, aidData,dataType=dataType))
 }
 
 # Wraps tableMatrix components
 tableMatrixWrap <- function(tab=data.table(), mat=list(), matDim=data.table(),
-	aid=list(), setKey=FALSE, objClass=NULL) {
+	aid=list(), setKey=FALSE, objClass=NULL, dataType=NULL) {
 	
 	obj <- list()
 	obj$tab <- tab
 	obj$mat <- mat
 	obj$matDim <- matDim
 	obj$aid <- aid
+
+	if (! is.null(dataType)) {
+		obj$aid$dataType <- dataType
+	} 
 
 	if (setKey) {
 		setkeyv(obj$tab, c(tmName$matN, tmName$matRow))
@@ -113,19 +129,19 @@ tableMatrixWrap <- function(tab=data.table(), mat=list(), matDim=data.table(),
 #' 
 #' @description \code{tableMatrix} constructor, creates tableMatrix object from a list of 
 #' data.frames or data.tables. It is useful for datasets with the following 
-#' structure: first set of columns of varying types is intented as meta data,
+#' structure: first set of columns of varying types is intended as meta data,
 #' second set of columns of the same type is intended as main data. 
 #' \code{tableMatrix} combines strengths of data.table (access via bracket 
 #' to the meta data part) and matrix (main data). It also stores dimensions of main data,
 #' thus allowing to combine rows of varying lengths into one object. As in \code{tableList},
-#' \code{tableMatrix} can carry any additional aid data. 
+#' \code{tableMatrix} can carry any additional aid data and data types groups.
 #'
 #' @param dataList Dataset(s) in the form of data.frame or data.table or list of data.frames or data.tables.
 #' All datasets must have the same meta data columns, matrix parts can be different. 
 #' @param tabCol Integer or character vector or list of these vectors. Specifies column 
 #' names or indices of meta data part. For list input, names \code{j} or \code{r} can be used. 
 #' List name \code{j} indicates that column names or indices are specified, name \code{r} indicates 
-#' range of column names or indicies. By default or when a vector is provided, \code{j} is used.
+#' range of column names or indices. By default or when a vector is provided, \code{j} is used.
 #' @param matCol Integer or character vector or list of these vectors. Specifies column
 #' names or indices of main data part. For list input, names \code{j} or \code{r} can be used
 #' as in \code{tabCol}.
@@ -135,15 +151,18 @@ tableMatrixWrap <- function(tab=data.table(), mat=list(), matDim=data.table(),
 #' @param dimNames Character vector. Specifies dimension names in \code{matDim} for each
 #' element of \code{dims} parameter. If not specified these names are generated automatically.
 #' @param aidData Aid structures generally in the form of a list.
+#' @param dataType Named list. Contains names of groups of attributes, elements are attributes which
+#' belong to the group.
 #' 
-#' @details \code{tableMatrix} is a S3 class that consists of 3 parts. 
+#' @details \code{tableMatrix} is a S3 class that consists of 4 parts. 
 #' \code{tab} - table part - is used for storing meta data, 
 #' \code{mat} - matrix part - for storing main data and \code{matDim} - dimensions part - for 
 #' dimensions of main data. 
 #' \code{mat} is a list of matrices. \code{tab} is a data.table. In \code{tab} first column \code{tm.matN} 
 #' is the matrix number in \code{mat}, second column \code{tm.matRow} is the row in the matrix. 
 #' \code{matDim} is \code{data.table}. In \code{matDim} for each matrix number \code{tm.matN} dimensions
-#' can be specified with user defined dimensions. 
+#' can be specified with user defined dimensions. \code{dataType} is a list which contains names of groups of
+#' attributes and vectors of attributes belonging to it.
 #' Default print of \code{tableMatrix} is the print of the \code{tab} part without \code{tm.matN} and 
 #' \code{tm.matRow} columns.
 #' 
@@ -223,24 +242,21 @@ tableMatrixWrap <- function(tab=data.table(), mat=list(), matDim=data.table(),
 #' matDim(TM)
 #' length(mat(TM)) # 1 matrix in mat
 #' 
+#' # dataType support
+#' TM <- tableMatrix(images10By10, 1:3, 4:ncol(images10By10), 
+#' dataType=list("group1"="direction", "group2"=c("dimX","dimY")))
+#' dataType(TM)
+#'
 #' @export
-tableMatrix <- function(dataList, tabCol, matCol, dims=NULL, dimNames=NULL, aidData=list()) {
+tableMatrix <- function(dataList, tabCol, matCol, dims=NULL, dimNames=NULL, aidData=list(), dataType=NULL) {
 
 	obj <- tableMatrixWrap()
 	if (missing(dataList)) { return(obj) }
 
-	if (is.data.frame(dataList)||is.data.table(dataList)) { dataList <- list(dataList) }
-
-	if (! is.null(dims)) {
-		if(! is.list(dims)) {
-			dims <- list(dims)
-		}
-
-		if (length(dims) != length(dataList)) {
-			stop("length of dims should be the same as number of dataLists")
-		}
-		
-	}
+	dataList <- inlist(dataList, is.data.frame(dataList)||is.data.table(dataList))
+	tabCol <- inlist(tabCol)
+	matCol <- inlist(matCol)
+	dims <- inlist(dims)
 
 	for (i in 1:length(dataList)) {
 
@@ -248,39 +264,34 @@ tableMatrix <- function(dataList, tabCol, matCol, dims=NULL, dimNames=NULL, aidD
 		if (is.data.frame(obji)) { obji <- as.data.table(obji) }
 		if (!is.data.table(obji)) { stop("tableMatrix requires list of data.frames or data.tables") }
 
-		if (! is.null(dims) && length(dims) != length(dataList)) {
-			stop("length of dims should be the same as number of data.frames (data.tables)")
-		}
-		
 		addTab <- obji[, colj(obji, geti(tabCol, i)), with=F]
-		addTab[,c(tmName$matN, tmName$matRow):=list(1, 1:nrow(addTab))]
+		addTab[,c(tmName$matN, tmName$matRow):=list(1L, 1:nrow(addTab))]
 		colShiftRef(addTab, c(tmName$matN, tmName$matRow), 1)
 
 		addMat <- as.matrix(obji[, colj(obji, geti(matCol, i)), with=F])
 
-
 		if (! is.null(dims)) {
-			dim <- dims[[i]]
+			dimi <- geti(dims, i, T)
 			#generate names for dims
-			if (is.null(names(dim)) && is.null(dimNames)) {
-				names <- c(1:length(dim))
-				names <- paste0(tmName$matDim, names)
+			if (is.null(names(dimi)) && is.null(dimNames)) {
+				dimiNames <- paste0(tmName$matDim, 1:length(dimi))
 			} else {
 				#names are taken from param
-				if (is.null(names(dim))) {
-				    names <- dimNames
+				if (is.null(names(dimi))) {
+					if (length(dimNames)!=length(dimi)) { stop("dims and dimNames lengths do not match") }
+				    dimiNames <- dimNames
 				} else {
-				    names <- names(dim)
+				    dimiNames <- names(dimi)
 				}
 			}
 
 			#set matDim
-			addMatDim <- setnames(data.table(c(1L)), c(tmName$matN))
-			addMatDim[,names := as.list(dim), with=F]
+			addMatDim <- setnames(data.table(1L), tmName$matN)
+			addMatDim[,c(dimiNames) := as.list(dimi)]
 		} else {
 			addMatDim <- setnames(data.table(1L, ncol(addMat)), c(tmName$matN, tmName$matCols))
 		}
-		obj <- rbind(obj, tableMatrixWrap(addTab, list(addMat), addMatDim, setKey=T))
+		obj <- rbind(obj, tableMatrixWrap(addTab, list(addMat), addMatDim, setKey=T, dataType=dataType))
 	}
 	setkeyv(obj$tab, c(tmName$matN, tmName$matRow))
 	setkeyv(obj$matDim, tmName$matN)
@@ -359,6 +370,21 @@ aid <- function(obj,...) { UseMethod("aid") }
 #' @export
 'aid<-' <- function(obj, value) { UseMethod("aid<-") }
 
+#' S3 tableMatrix generic to get or set dataType attribute
+#'
+#' @param obj Object.
+#' @param value Named list.
+#' @param ... Passed arguments.
+#'
+#' @return List.
+#'
+#' @export
+dataType <- function(obj,...) { UseMethod("dataType") }
+#' @rdname dataType
+#'
+#' @export
+'dataType<-' <- function(obj,value) { UseMethod("dataType<-") }
+
 #' S3 tableMatrix generic to get row repo for matrix attribute
 #' 
 #' @param ... Passed arguments.
@@ -393,6 +419,63 @@ setRow <- function(...) { UseMethod("setRow") }
 #'
 #' @export
 getRowDim <- function(...) { UseMethod("getRowDim") }
+
+#
+# Methods Functions
+#
+
+
+mergeDataTypeRef <- function(objTab, dtX, dtY) {
+
+	objDataType <- list()
+
+	dTypes <- intersect(names(dtX), names(dtY))
+	if (length(dTypes)) {
+		for (dType in dTypes)  { objDataType[[dType]] <- union(dtX[[dType]], dtY[[dType]]) }
+	}
+	dTypes <- setdiff(names(dtX), names(dtY))
+	if (length(dTypes)) {
+		for (dType in dTypes)  { objDataType[[dType]] <- dtX[[dType]] }
+	}
+	dTypes <- setdiff(names(dtY), names(dtX))
+	if (length(dTypes)) {
+		for (dType in dTypes)  { objDataType[[dType]] <- dtY[[dType]] }
+	}
+
+	if (! (missing(dtX)&&missing(dtY))) {
+
+		for (index in 1:length(objDataType)) {
+			type <- objDataType[index]
+			prevType <- objDataType[index-1]
+
+			if (any(names(dtX)==names(type))) {
+				metaEndIdx <- max(colj(objTab, prevType[names(dtX)]),colj(objTab, prevType[names(dtY)]))+1
+				colShiftRef(objTab, type[names(dtX)], metaEndIdx, destInSrc=metaEndIdx)
+				if (any(names(dtY)==names(type))) {
+					metaEndIdx <- max(colj(objTab, type[names(dtY)[names(dtX)==names(dtY)]]))+1
+					colShiftRef(objTab, type[names(dtY)[names(type)==names(dtY)]], metaEndIdx, destInSrc=metaEndIdx)
+				}
+
+			} else {
+				if (any(names(dtY)==names(objDataType))) {
+					metaEndIdx <- max(colj(objTab, objDataType[index-1][names(dtX)]))+1
+					colShiftRef(objTab, type[names(dtY)], metaEndIdx, destInSrc=metaEndIdx)
+				}
+			}
+		}
+
+	return(objDataType)
+	}
+}
+
+updateDataType <- function(tabName, checkDataType) {
+
+	for (dType in names(checkDataType)) {
+		checkDataType[[dType]] <- intersect(tabName, checkDataType[[dType]])
+		if (!length(checkDataType[[dType]])) { checkDataType[[dType]] <- NULL }
+	}
+	return(checkDataType)
+}
 
 #
 # Classes Generics Methods
@@ -461,7 +544,7 @@ aid.tableList <- function(obj, ...) {	return(obj$aid) }
 #' @param addRow Logical. If TRUE column \code{tm.allRow} with row indexes before subsetting
 #' is added.
 #' @param resetN Logical. Used when matN is specified. When FALSE
-#' \code{tm.matN} of returned tab won't be reseted to 1. Default TRUE.
+#' \code{tm.matN} of returned tab won't be reset to 1. Default TRUE.
 #' @param ... Passed arguments.
 #' 
 #' @return Full table part of \code{tableMatrix} or a subset of table part.
@@ -511,6 +594,42 @@ tab.tableMatrix <- function(obj, matN=NULL, addRow=FALSE, resetN=TRUE, ...) {
 	}
 
 	return(objTab) 
+}
+
+#' Get or set dataType attribute
+#'
+#' \code{tableList} and \code{tableMarix} method to get or set dataType attribute.
+#'
+#' @param obj \code{tableMatrix} or \code{tableList} object.
+#' @param ... Passed arguments.
+#' @param value List of datatypes.
+#' 
+#' @return List of datatypes.
+#'
+#' @export
+dataType.tableList <- function(obj,...) {
+
+	return(obj$aid$dataType)
+}
+#' @rdname dataType.tableList
+#' @export
+'dataType<-.tableList' <- function(obj, value) {
+	
+	obj$aid$dataType <- value	
+	return(obj)
+}
+#' @rdname dataType.tableList
+#' @export
+dataType.tableMatrix <- function(obj,...) {	
+
+	return(obj$aid$dataType)
+}
+#' @rdname dataType.tableList
+#' @export
+'dataType<-.tableMatrix' <- function(obj, value) {
+	
+	obj$aid$dataType <- value	
+	return(obj)
 }
 
 #' Get or set matrix attribute
@@ -567,7 +686,7 @@ mat.tableMatrix <- function(obj, matN=NULL, ...) {
 #' @param obj \code{tableMatrix} object.
 #' @param matN Integer. Matrix number in the matrix part list.
 #' @param resetN Logical. When FALSE \code{tm.matN} of returned \code{matDim} won't be 
-#' reseted to 1.
+#' reset to 1.
 #' @param ... Passed arguments.
 #' @param value data.table
 #'
@@ -700,7 +819,7 @@ setRow.tableMatrix <- function(obj, value, i=NULL, repo=NULL, ...) {
 
 #' Get row dimensions
 #' 
-#' \code{tableMatrix} method to get row dimensions from matDim atrribute.
+#' \code{tableMatrix} method to get row dimensions from matDim attribute.
 #' 
 #' @param obj \code{tableMatrix} object.
 #' @param i Integer. Row index in \code{tab}.
@@ -745,9 +864,14 @@ getRowDim.tableMatrix <- function(obj, i=NULL, repo=NULL, ...) {
 #' Bracket
 #' 
 #' \code{tableList} method, passes data.table bracket functionality to the table attribute.
-#' Usage is the same as in data.table[].
+#' Usage is the same as in data.table[] and data.table[] <-.
+#' Assigning works only for \code{tab} part and only \code{i} and \code{j} from \code{data.table}
+#' is used.
 #' 
 #' @param x \code{tableList} object.
+#' @param i Same as \code{i} in \code{data.table}
+#' @param j Same as \code{j} in \code{data.table}
+#' @param value Value to be set.
 #' @param ... Passed arguments.
 #' 
 #' @return \code{tableList} or vector.
@@ -761,7 +885,16 @@ getRowDim.tableMatrix <- function(obj, i=NULL, repo=NULL, ...) {
 #' 
 #' # Apply data.table bracket on a tableList object
 #' TL[direction=="both"]
+#'
 #' 
+#' TL[2,1] <- "aaa"
+#' 
+#' # setting row
+#' TL[2,] <- list("aaa", 1000, 1000)
+#' 
+#' # setting column
+#' TL[,2] <- 1
+#'
 #' @export
 '[.tableList' <- function(x, ...) {
 
@@ -778,6 +911,39 @@ getRowDim.tableMatrix <- function(obj, i=NULL, repo=NULL, ...) {
 	## copy after bracket
 	# objTab <- copy(x$tab[...])
 	
+	if (is.null(nrow(objTab))) { return(objTab) }
+
+	x$tab <- objTab
+	if (! is.null(x$aid$dataType)) {
+		x$aid$dataType <- updateDataType(colnames(objTab), x$aid$dataType)
+	}
+	return(x)
+}
+
+#' Bracket
+#' @rdname sub-.tableList
+#' @export
+'[<-.tableList' <- function(x, i, j, value) {
+	matchCall <- match.call()
+	matchCall[[1]] <- quote(`[<-`)
+	assign("brTableListTab",tab(x), envir=parent.frame())
+	on.exit(rm("brTableListTab", envir=parent.frame()))
+	matchCall[[2]] <- quote(brTableListTab)
+	if (! missing(i)) {
+		assign("brI",i, envir=parent.frame())
+		on.exit(rm("brI", envir=parent.frame()))
+		matchCall$i <- quote(brI)
+	}
+	if (! missing(j)) {
+		assign("brJ",j, envir=parent.frame())
+		on.exit(rm("brJ", envir=parent.frame()))
+		matchCall$j <- quote(brJ)
+	}
+	assign("brValue",value, envir=parent.frame())
+	on.exit(rm("brValue", envir=parent.frame()))
+	matchCall$value <- quote(brValue)
+	objTab <- eval.parent(matchCall)
+
 	if (is.null(nrow(objTab))) { return(objTab) }
 
 	x$tab <- objTab
@@ -802,8 +968,13 @@ getRowDim.tableMatrix <- function(obj, i=NULL, repo=NULL, ...) {
 #' Bracket
 #' 
 #' \code{tableMatrix} method, passes data.table bracket functionality to the table attribute.
+#' Assigning works only for \code{tab} part and only \code{i} and \code{j} from \code{data.table}
+#' is used. If \code{j} is numeric, it corresponds to first attribute after \code{tmName} names.
 #' 
 #' @param x \code{tableMatrix} object.
+#' @param i Same as \code{i} in \code{data.table}
+#' @param j Same as \code{j} in \code{data.table}
+#' @param value Value to be set.
 #' @param ... Passed arguments.
 #'
 #' @return \code{tableMatrix} or vector.
@@ -814,10 +985,18 @@ getRowDim.tableMatrix <- function(obj, i=NULL, repo=NULL, ...) {
 #'
 #' # Create tableMatrix from images8By8
 #' TM <- tableMatrix(images8By8, 1:3, 4:ncol(images8By8))
+#'
 #' 
-#' # Apply data.table bracket on a tableMatrix object
-#' TM[direction=="both"]
+#' TM[2,1] <- "aaa"
+#'
+#' TM[1,"dimX"] <- 1000
 #' 
+#' # setting row
+#' TM[2,] <- list("aaa", 1000, 1000)
+#' 
+#' # setting column
+#' TM[,2] <- 1
+#'
 #' @export
 '[.tableMatrix' <- function(x, ...) {
 
@@ -874,10 +1053,84 @@ getRowDim.tableMatrix <- function(obj, i=NULL, repo=NULL, ...) {
 	x$tab <- objTab
 	x$mat <- objMat
 	x$matDim <- objMatDim
+	if (!is.null(nrow(x)) && ! is.null(x$aid$dataType)) { 
+		x$aid$dataType <- updateDataType(colnames(x$tab), x$aid$dataType)
+	}
 	setkeyv(x$tab, c(tmName$matN, tmName$matRow))
 	setkeyv(x$matDim, tmName$matN)
 	return(x)
 }
+
+#' Bracket
+#' @rdname sub-.tableMatrix
+#' @export
+'[<-.tableMatrix' <- function(x, i, j, value) {
+	matchCall <- match.call()
+	if (missing(j)) {
+		j<-setdiff(colnames(x$tab), tmName)
+		matchCall$j <- j
+		names(matchCall)[4:5] <- c("j", "value")
+	}
+	if (is.numeric(j)) j <- setdiff(colnames(x$tab), tmName)[j]
+
+	matchCall[[1]] <- quote(`[<-`)
+	assign("brTableListTab",tab(x), envir=parent.frame())
+	on.exit(rm("brTableListTab", envir=parent.frame()))
+	matchCall[[2]] <- quote(brTableListTab)
+	if (! missing(i)) {
+		assign("brI",i, envir=parent.frame())
+		on.exit(rm("brI", envir=parent.frame()))
+		matchCall$i <- quote(brI)
+	}
+	assign("brJ",j, envir=parent.frame())
+	on.exit(rm("brJ", envir=parent.frame()))
+	matchCall$j <- quote(brJ)
+	assign("brValue",value, envir=parent.frame())
+	on.exit(rm("brValue", envir=parent.frame()))
+	matchCall$value <- quote(brValue)
+	objTab <- eval.parent(matchCall)
+
+	if (is.null(nrow(objTab))) { return(objTab) }
+
+	x$tab <- objTab
+	setkeyv(x$tab, c(tmName$matN, tmName$matRow))
+	setkeyv(x$matDim, tmName$matN)
+	return(x)
+}
+
+
+#' Column binding
+#' 
+#' @rdname cbind.tableMatrix
+#'
+#' @param x \code{tableList} or \code{tableMatrix} object.
+#' @param y \code{tableList} or \code{tableMatrix} object.
+#' @param ... Passed arguments.
+#'
+#' @method cbind tableList
+#' @export
+cbind.tableList <- function(x, y, ...) {
+
+	x <- copy(x)
+	x$tab <- cbind(x$tab, y$tab, ...)
+	x$aid$dataType <- mergeDataTypeRef(x$tab, dataType(x), dataType(y))
+	return(x)
+}
+
+#' Column binding
+#' 
+#' Column binding of tab part of \code{tableMatrix} or \code{tableList} object.
+#'
+#' @return Matrix object.
+#' 
+#' @method cbind tableMatrix
+#' @export
+cbind.tableMatrix <- function(x, y, ...) {
+
+	x <- cbind.tableList(x, y, ...)
+	return(x)
+}
+
 
 #' Dimensions
 #' 
@@ -887,6 +1140,7 @@ getRowDim.tableMatrix <- function(obj, i=NULL, repo=NULL, ...) {
 #' 
 #' @return Dimensions of the table part.
 #'
+#' @method dim tableList
 #' @export
 dim.tableList <- function(x) {
 	return(dim(x$tab))
@@ -900,6 +1154,7 @@ dim.tableList <- function(x) {
 #'
 #' @return Column and row names of the table part.
 #'
+#' @method dimnames tableList
 #' @export
 dimnames.tableList <- function(x) {
 	return(dimnames(x$tab))
@@ -912,6 +1167,7 @@ dimnames.tableList <- function(x) {
 #' @param x \code{tableList} object.
 #' @param ... Passed arguments.
 #' 
+#' @method print tableList
 #' @export
 print.tableList <- function(x, ...) {
 	
@@ -926,6 +1182,7 @@ print.tableList <- function(x, ...) {
 #' @param x \code{tableMatrix} object.
 #' @param ... Passed arguments.
 #' 
+#' @method print tableMatrix
 #' @export
 print.tableMatrix <- function(x, ...) {
 
@@ -934,13 +1191,28 @@ print.tableMatrix <- function(x, ...) {
 	return(invisible())
 }
 
+#' Merging tableList
+#' 
+#' @rdname merge.tableMatrix
+#' 
+#' @method merge tableList
+#' @export
+merge.tableList <- function(x,y, key, ...) {
+
+	x <- copy(x)
+	x$tab <- merge(x$tab, y$tab, by=key, ...)
+	if (is.null(x$aid$dataType))
+	x$aid$dataType <- mergeDataTypeRef(x$tab, dataType(x), dataType(y))
+	return(x)
+}
+
 #' Merge
 #' 
-#' \code{tableMatrix} method, merges \code{tableMatrix} objects with data.table or 
-#' data.frame.
+#' \code{tableMatrix} method, merges \code{tableMatrix} or \code{tableList} objects with data.table, 
+#' data.frame, \code{tableList} or \code{tableMatrix}.
 #' 
 #' @param x \code{tableMatrix} object
-#' @param y data.table or data.frame object.
+#' @param y data.table, data.frame, \code{tableList}, \code{tableMatrix} object.
 #' @param key Shared columns as merging key.
 #' @param ... Passed arguments.
 #' 
@@ -956,6 +1228,7 @@ print.tableMatrix <- function(x, ...) {
 #' # Merge tableMatrix object with a data.frame
 #' merge(TM, data.frame(direction="down", flag=TRUE), key="direction")
 #' 
+#' @method merge tableMatrix
 #' @export
 merge.tableMatrix <- function(x, y, key, ...) {
 
@@ -963,8 +1236,14 @@ merge.tableMatrix <- function(x, y, key, ...) {
 	obj <- copy(x)
 	dataObj <- copy(y)
 	setkeyv(obj$tab,key)
-	setkeyv(dataObj,key)
-	return(obj[J(dataObj)])
+	if (! is.data.table(y)) {
+		setkeyv(dataObj$tab,key)
+		obj$aid$dataType <- mergeDataTypeRef(obj$tab, dataType(obj), dataType(y))
+		return(obj[J(dataObj$tab)])
+	} else {
+		setkeyv(dataObj,key)
+		return(obj[J(dataObj)])
+	}
 }
 
 #' Combine by rows
@@ -989,6 +1268,7 @@ merge.tableMatrix <- function(x, y, key, ...) {
 #' # Bindind rows of two tableList objects
 #' rbind(TL1, TL2)
 #'
+#' @method rbind tableList
 #' @export
 rbind.tableList <- function(..., use.names=TRUE, fill=FALSE) {
 
@@ -1060,6 +1340,7 @@ rbind.tableList <- function(..., use.names=TRUE, fill=FALSE) {
 #' # Two dimension types
 #' matDim(TM)
 #' 
+#' @method rbind tableMatrix
 #' @export
 rbind.tableMatrix <- function(..., use.names=TRUE, fill=FALSE) {
 
@@ -1124,6 +1405,7 @@ rbind.tableMatrix <- function(..., use.names=TRUE, fill=FALSE) {
 #' 
 #' @return \code{tableList} object.
 #' 
+#' @method copy tableList
 #' @export
 copy.tableList <- function(obj) {
 
@@ -1139,6 +1421,7 @@ copy.tableList <- function(obj) {
 #' 
 #' @return \code{tableMatrix} object.
 #' 
+#' @method copy tableMatrix
 #' @export
 copy.tableMatrix <- function(obj) {
 
